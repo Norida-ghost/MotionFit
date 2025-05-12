@@ -1,0 +1,85 @@
+import pandas as pd
+import os
+
+# Made by chatGPT, but not used in the final version
+
+# === Options ===
+folder_path = r"C:\Users\id\ESA\Kamera filer\data"
+points = list(range(34))  # Punkt 0–33
+coordinate_prefixes = ['X', 'Y', 'Z']
+
+# === The function to read and reformat all files ===
+def read_all_files(folder):
+    all_data = []
+
+    for file in os.listdir(folder):
+        if file.endswith(".csv"):
+            path = os.path.join(folder, file)
+            df = pd.read_csv(path)
+
+            # Remove evt. empty rows
+            df.dropna(how='all', inplace=True)
+
+            # Reformat: Make a row for every point for every frame
+            frames = []
+            for point in points:
+                x_col = f"X{point}"
+                y_col = f"Y{point}"
+                z_col = f"Z{point}"
+
+                if x_col in df.columns and y_col in df.columns and z_col in df.columns:
+                    temp = pd.DataFrame({
+                        "Frame": df["Frame#"] if "Frame#" in df.columns else df.index,
+                        "Point": point,
+                        "X": df[x_col],
+                        "Y": df[y_col],
+                        "Z": df[z_col],
+                        "source_file": file
+                    })
+                    frames.append(temp)
+
+            if frames:
+                all_data.append(pd.concat(frames, ignore_index=True))
+
+    if not all_data:
+        print("⚠️ Ingen gyldige data fundet.")
+        return pd.DataFrame()
+    
+    return pd.concat(all_data, ignore_index=True)
+
+# === Analyze function ===
+def analyze_data(df):
+    grouped = df.groupby(["Point", "source_file"])
+    stats = grouped[["X", "Y", "Z"]].agg(['mean', 'std']).reset_index()
+
+    stats.columns = ['Point', 'source_file',
+                     'X_mean', 'X_std', 'Y_mean', 'Y_std', 'Z_mean', 'Z_std']
+    return stats
+
+# === Print out the overview ===
+def print_summary(df_stats):
+    if df_stats.empty:
+        print("⚠️ Ingen statistik at vise.")
+        return
+    print("\n📊 Gennemsnitlig variation i Z-koordinat pr. punkt:")
+    print(df_stats.groupby("Point")[["Z_std"]].mean().round(4))
+
+# === Save result in Excel ===
+def save_to_excel(df_stats, output_path="samlet_oversigt.xlsx"):
+    df_stats.to_excel(output_path, index=False)
+    print(f"\n💾 Statistik gemt i: {output_path}")
+
+# === Main function ===
+def main():
+    df = read_all_files(folder_path)
+    if df.empty:
+        return
+
+    print(f"✅ Indlæst {df.shape[0]} rækker fra {df['source_file'].nunique()} filer.")
+
+    df_stats = analyze_data(df)
+    print_summary(df_stats)
+    save_to_excel(df_stats)
+
+if __name__ == "__main__":
+    main()
