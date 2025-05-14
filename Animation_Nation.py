@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 from mpl_toolkits.mplot3d import Axes3D
 from tkinter import Tk, filedialog
+import os 
 
 def load_joint_data(file_path, n_joints=34):
     """
@@ -47,10 +48,17 @@ ax.set_title("3D Joint Animation with Connections")
 colors = ['blue', 'red']
 datasets = [joint_data1, joint_data2]
 
+file1_name = os.path.basename(file1)
+file2_name = os.path.basename(file2)
+
+# Update the scatter plot labels with filenames
 scatters = [
-    ax.scatter([], [], [], s=60, c=color, label=f'Dataset {i+1}')
-    for i, color in enumerate(colors)
+    ax.scatter([], [], [], s=60, c=color, label=file_name)
+    for color, file_name in zip(colors, [file1_name, file2_name])
 ]
+
+# Update the legend to reflect only the filenames
+ax.legend()
 
 # Define connections (pairs of joint indices)
 connections = [
@@ -136,7 +144,6 @@ ax.set_zlim(np.min(combined[:, :, 2]), np.max(combined[:, :, 2]))
 ax.set_xlabel('X (Frontal)')
 ax.set_ylabel('Y (Vertical)')
 ax.set_zlabel('Z (Sagittal)')
-ax.legend()
 
 # ------------------------ Animation Function ------------------------
 def update(frame):
@@ -154,11 +161,16 @@ def update(frame):
             l.set_data([x[i], x[j]], [y[i], y[j]])
             l.set_3d_properties([z[i], z[j]])
 
-        # Update labels
-        for idx, joint_idx in enumerate(label_indices):
-            labels[d][idx].set_position((x[joint_idx], y[joint_idx]))
-            labels[d][idx].set_3d_properties(z[joint_idx])
-            labels[d][idx].set_text(Joint_names[joint_idx])
+        # Update labels only for the first dataset
+        if d == 0:
+            for idx, joint_idx in enumerate(label_indices):
+                labels[d][idx].set_position((x[joint_idx], y[joint_idx]))
+                labels[d][idx].set_3d_properties(z[joint_idx])
+                labels[d][idx].set_text(Joint_names[joint_idx])
+        else:
+            # Hide labels for the second dataset
+            for label in labels[d]:
+                label.set_text('')
 
     return scatters + sum(lines, []) + sum(labels, [])
 
